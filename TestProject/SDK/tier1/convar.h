@@ -8,11 +8,10 @@
 class IConsoleDisplayFunc;
 class ConCommandBase;
 class ConCommand;
-typedef int CVarDLLIdentifier_t;
 class ICvarQuery;
 class Color;
 
-class IConVar {
+class IConVar{
 public:
 	virtual				~IConVar() = 0;
 	virtual	bool		IsCommand(void) const = 0;
@@ -21,17 +20,14 @@ public:
 	virtual const char* GetName(void) const = 0;
 	virtual const char* GetHelpText(void) const = 0;
 	virtual bool		IsRegistered(void) const = 0;
-	virtual CVarDLLIdentifier_t GetDLLIdentifier() const = 0;
+	virtual int			GetDLLIdentifier() const = 0;
 	virtual void		CreateBase(const char* pName, const char* pHelpString = 0, int flags = 0) = 0;
 	virtual void		Init() = 0;
 	virtual void		SetValue(const char* value) = 0;
 	virtual void		SetValue(float value) = 0;
-	virtual void		InternalSetValue(int value) = 0;
-	virtual void		InternalSetFloatValue(float value) = 0;
-	virtual void		InternalSetIntValue(int value) = 0;
+	virtual void		SetValue(int value) = 0;
 	virtual bool		ClampValue(float& value) = 0;
 	virtual void		ChangeStringValue(const char* tempVal, float flOldValue) = 0;
-	virtual void		Create(const char* unk, const char* unk02, int unk03, const char* unk04, bool unk05, float unk06, bool unk07, float unk08, void* unk09) = 0;
 public:
 	const char* GetName()
 	{
@@ -47,42 +43,8 @@ public:
 	}
 };
 
-class IConCommandBaseAccessor {
-public:
-	virtual bool RegisterConCommandBase(ConCommandBase* pVar) = 0;
-};
-
-
-class ConCommandBase {
-public:
-	ConCommandBase(void);
-	ConCommandBase(const char* pName, const char* pHelpString = 0, int flags = 0);
-
-	virtual						~ConCommandBase(void);
-	virtual	bool				IsCommand(void) const;
-	virtual bool				IsFlagSet(int flag) const;
-	virtual void				AddFlags(int flags);
-	virtual void				GetName(void);
-	virtual const char*			GetHelpText(void) const;	
-	virtual bool				IsRegistered(void) const;
-	virtual int					GetDLLIdentifier() const;
-	virtual void				CreateBase(const char* pName, const char* pHelpString = 0, int flags = 0);
-	virtual void				Init();
-
-public:
-	ConCommandBase* m_pNext;
-	bool							m_bRegistered;
-	const char* m_pszName;
-	const char* m_pszHelpString;
-	int								m_nFlags;
-
-public:
-	static ConCommandBase* s_pConCommandBases;
-	static IConCommandBaseAccessor* s_pAccessor;
-};
-
 typedef void(*FnChangeCallback_t)(IConVar* var, const char* pOldValue, float flOldValue);
-class CCVar: public ConCommandBase, public IConVar {
+class CCVar{
 public:
 	// Iappsystem stuff
 	virtual void Connect() = 0;
@@ -96,7 +58,7 @@ public:
 	// Register, unregister commands
 	virtual void			RegisterConCommand(ConCommandBase* pCommandBase) = 0;
 	virtual void			UnregisterConCommand(ConCommandBase* pCommandBase) = 0;
-	virtual void			UnregisterConCommands(CVarDLLIdentifier_t id) = 0;
+	virtual void			UnregisterConCommands(int id) = 0;
 
 	// If there is a +<varname> <value> on the command line, this returns the value.
 	// Otherwise, it returns NULL.

@@ -1,18 +1,22 @@
 #include <Windows.h>
 #include <stdio.h>
 #include <iostream>
+#include <cctype>
 
 #include "CInterfaces.h"
 
-CInterfaces::CInterfaces() {
-	this->Setup();
-}
+CInterfaces* pInterfaces;
+
+CInterfaces::CInterfaces() {}
 
 void CInterfaces::Setup() {
-	this->pCVar = (CCVar*)this->GetInterface("vstdlib.dll", "VEngineCvar");
+	this->pCVar = (CCVar*)GetInterface("vstdlib.dll", "VEngineCvar");
+	this->pClient = (CHLClient*)GetInterface("client.dll", "VClient");
+	this->pEngine = (CEngineClient*)GetInterface("engine.dll", "VEngineClient");
+	this->pClientEntityList = (ClientEntityList*)GetInterface("client.dll", "VClientEntityList");
 }
 
-void* CInterfaces::GetInterface(const char* pModule, const char* pInterface) {
+void* CInterfaces::GetInterface(const char* pModule, const char* Interface) {
 	CreateInterfaceFn CreateInterface = (CreateInterfaceFn)GetProcAddress(GetModuleHandleA(pModule), "CreateInterface");
 
 	uintptr_t jmpAddress = (uintptr_t)CreateInterface + 0x4;
@@ -20,27 +24,23 @@ void* CInterfaces::GetInterface(const char* pModule, const char* pInterface) {
 	uintptr_t jmpLocation = (jmpAddress + 0x5) + displacement;
 	uintptr_t linkedListLocation = jmpLocation + 0x6;
 
-	std::cout << std::hex << jmpAddress << std::endl;
-	std::cout << std::hex << displacement << std::endl;
-	std::cout << std::hex << jmpLocation << std::endl;
-
 	InterfaceReg* linkedList = **(InterfaceReg***)linkedListLocation;
 
-	void* Interface = nullptr;
 	for (InterfaceReg* current = linkedList; current; current = current->NextInterface) {
-		if (strstr(current->InterfaceName, pInterface) && (strlen(current->InterfaceName) - strlen(pInterface)) < 5) {
-			Interface = (void*)CreateInterface(current->InterfaceName, NULL);
+		std::string name = current->InterfaceName;
+		name.erase(
+			std::remove_if(name.begin(), name.end(),
+				[](char c) {
+					return std::isdigit((uint8_t)c);
+				}
+		), name.end());
 
-			std::cout << "FOUND INTERFACE " << std::hex << Interface << std::endl;
-
-			break;
+		if (Interface == name) {
+			std::cout << "Interface found (" << current->InterfaceName << ") = 0x" << std::hex << (void*)current->Interface() << std::endl;
+			return (void*)current->Interface();
 		}
 
 	}
 
-	return Interface;
-}
-
-CCVar* CInterfaces::GetCCVar() {
-	return this->pCVar;
+	return nullptr;
 }

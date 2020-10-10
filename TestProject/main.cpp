@@ -4,9 +4,11 @@
 #include <stdio.h>
 #include <iostream>
 #include <stdint.h>
+#include <cctype>
 
-#include "SDK/tier1/convar.h"
+#include "VMTHook/VMTHook.h"
 #include "Interfaces/CInterfaces.h"
+#include "NetVars/CNetVarManager.h"
 
 FILE* stream;
 CCVar* CVAR;
@@ -16,44 +18,32 @@ template< class ...Args >
 void msg_wrapper(const char* fmt, Args && ...args) {
 	static MsgFn fn = (MsgFn)GetProcAddress(GetModuleHandleA("tier0.dll"), "Msg");
 	if (!fn)
-	{
 		return;
-	}
 
 	fn(fmt, std::forward<Args>(args)...);
 }
 
-void* CreateInterface(const char* pModule, const char* pInterface) {
-	CreateInterfaceFn CreateInterface = (CreateInterfaceFn)GetProcAddress(GetModuleHandleA(pModule), "CreateInterface");
+#define getebp() stack *_bp; __asm mov _bp, ebp;
 
-	uintptr_t jmpAddress = (uintptr_t)CreateInterface + 0x4;
-	auto displacement = *(int*)(jmpAddress + 0x1);
-	uintptr_t jmpLocation = (jmpAddress + 0x5) + displacement;
-	uintptr_t linkedListLocation = jmpLocation + 0x6;
+typedef int(__thiscall* GetScreenWidthFn)();
+GetScreenWidthFn oGetScreenWidth = nullptr;
 
-	std::cout << std::hex << jmpAddress << std::endl;
-	std::cout << std::hex << displacement << std::endl;
-	std::cout << std::hex << jmpLocation << std::endl;
-	
-	InterfaceReg* linkedList = **(InterfaceReg***)linkedListLocation;
+struct stack {
+	stack* next;
+	char* ret;
 
-	void* Interface = nullptr;
-	for (InterfaceReg* current = linkedList; current; current = current->NextInterface) {
-		if (strstr(current->InterfaceName, pInterface) && (strlen(current->InterfaceName) - strlen(pInterface)) < 5) {
-			Interface = (int*)CreateInterface(current->InterfaceName, NULL);
-
-			std::cout << "FOUND INTERFACE" << std::endl;
-
-			std::cout << std::hex << Interface;
-
-			break;
-		}
-			
+	template<typename T> inline 
+		T arg(unsigned int i) {
+		return *(T*)((void**)this + i + 2);
 	}
+};
 
+int __fastcall hGetScreenWidth() {
+	
+	std::cout << "CALLED GETSCREENWIDTH" << std::endl;
 
-	return Interface;
-}
+	return oGetScreenWidth();
+};
 
 void main() {
 	AllocConsole();
@@ -63,16 +53,30 @@ void main() {
 	freopen_s(&stream, "CONOUT$", "w", stdout);
 	freopen_s(&stream, "CONOUT$", "w", stderr);
 
-	std::cout << "Output" << std::endl;
+	std::cout << "Loaded.." << std::endl;
+	msg_wrapper("Loaded..\n");
 
-	msg_wrapper("Hi");
-	CVAR = (CCVar*)CreateInterface("vstdlib.dll", "VEngineCvar");
+	pInterfaces = new CInterfaces();
+	pInterfaces->Setup();
 
-	IConVar* cvar;
+	pNetVarManager = new CNetVarManager(pInterfaces->pClient);
+	pNetVarManager->Setup();
 
-	cvar = (IConVar*)CVAR->FindVar("sv_allowcslua");
+	//player_info_t player_info;
 
-	std::cout << std::hex << cvar << std::endl;
+	//pInterfaces->pEngine->GetPlayerInfo(pInterfaces->pEngine->GetLocalPlayer(), &player_info);
+
+	//std::cout << player_info.name << std::endl;
+
+	//std::cout << pInterfaces->pClientEntityList->GetClientEntity(pInterfaces->pEngine->GetLocalPlayer())->GetBaseEntity()->GetHealthNV() << std::endl;
+
+	//std::cout << pInterfaces->pClientEntityList->GetClientEntity(pInterfaces->pEngine->GetLocalPlayer())->GetBaseEntity()->m_nTickBase() << std::endl;
+
+	VMTHook* tVMT = new VMTHook(pInterfaces->pClient);
+	oGetScreenWidth = (GetScreenWidthFn)tVMT->Hook(56, hGetScreenWidth);
+
+	pInterfaces->pClient->GetScreenWidth();
+
 	
 }
 

@@ -3,7 +3,13 @@
 
 #pragma once
 
+#include "../SDK/Client/CHLClient.h"
+#include "../NetVars/CNetVarManager.h"
 #include "../SDK/tier1/convar.h"
+#include "../SDK/Client/ClientEntityList.h"
+#include "../SDK/Entities/BaseEntity.h"
+#include "../SDK/Engine.h"
+
 
 typedef void* (*InstantiateInterface)();
 typedef void* (*CreateInterfaceFn)(const char* pModule, int pReturn);
@@ -16,15 +22,16 @@ public:
 };
 
 class CInterfaces {
-private:
-	CCVar* pCVar;
+public:
+	CCVar* pCVar;	
+	CHLClient* pClient;
+	ClientEntityList* pClientEntityList;
+	CEngineClient* pEngine;
 public:
 	CInterfaces();
-
-	CCVar* GetCCVar();
-private:
 	void Setup();
+private:
 	void* GetInterface(const char* pModule, const char* pInterface);
-};
+}; extern CInterfaces* pInterfaces;
 
 #endif
